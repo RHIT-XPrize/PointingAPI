@@ -20,6 +20,7 @@ namespace KinectPointingAPI.Controllers
         private CoordinateMapper coordinateMapper;
         private FrameDescription colorFrameDescription;
 
+        private static int TIMEOUT_SEC = 30;
 
         public ObjectDetectionController()
         {
@@ -28,15 +29,21 @@ namespace KinectPointingAPI.Controllers
             this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
         }
 
-        // GET api/values
+        // GET api/ObjectDetection
         public string Get()
         {
             ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
 
             kinectSensor.Open();
+            int time_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
                 Thread.Sleep(5);
+                time_slept += 5;
+                if(time_slept > TIMEOUT_SEC)
+                {
+                    System.Environment.Exit(-1);
+                }
             }
 
             bool dataReceived = false;
