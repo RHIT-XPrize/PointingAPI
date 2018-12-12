@@ -13,6 +13,8 @@ namespace KinectPointingAPI.Controllers
 {
     public class ValuesController : ApiController
     {
+
+        private static int CONNECT_TIMEOUT_MS = 20000;
         // GET api/values
         public IEnumerable<string> Get()
         {
@@ -29,10 +31,15 @@ namespace KinectPointingAPI.Controllers
             List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
 
             kinectSensor.Open();
-
+            int ms_slept = 0;
             while(!kinectSensor.IsAvailable)
             {
                 Thread.Sleep(5);
+                ms_slept += 5;
+                if (ms_slept >= CONNECT_TIMEOUT_MS)
+                {
+                    System.Environment.Exit(-1);
+                }
             }
 
             // Right Arm
