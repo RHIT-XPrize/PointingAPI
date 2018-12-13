@@ -49,12 +49,15 @@ namespace KinectPointingAPI.Controllers
             while (!dataReceived)
             {
                 BodyFrame bodyFrame = bodyFrameReader.AcquireLatestFrame();
-                bodies = new Body[bodyFrame.BodyCount];
-                bodyFrame.GetAndRefreshBodyData(bodies);
-                if (bodyFrame.BodyCount > 0)
+                if(bodyFrame != null)
                 {
-                    dataReceived = true;
-                }
+                    bodies = new Body[bodyFrame.BodyCount];
+                    bodyFrame.GetAndRefreshBodyData(bodies);
+                    if (bodyFrame.BodyCount > 0)
+                    {
+                        dataReceived = true;
+                    }
+                }  
             }
 
             Body body = bodies[0];
