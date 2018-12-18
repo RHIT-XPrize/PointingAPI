@@ -15,6 +15,7 @@ using System.Windows.Media;
 using System.Windows;
 using Point = System.Drawing.Point;
 using System.IO;
+using System.Web.Http.Results;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -50,7 +51,7 @@ namespace KinectPointingAPI.Controllers
         }
 
         // GET api/ObjectDetection
-        public string Get()
+        public JsonResult<List<BlockData>> Post()
         {
             kinectSensor.Open();
             int time_slept = 0;
@@ -88,9 +89,10 @@ namespace KinectPointingAPI.Controllers
             }
 
             List<BlockData> aggregatedData = this.ProcessBlocksFromFrames();
-            return JsonConvert.SerializeObject(aggregatedData);
+            return Json(aggregatedData);
         }
 
+        
         private List<BlockData> ProcessBlocksFromFrames()
         {
             Bitmap colorData = this.ConvertCurrFrameToBitmap();
