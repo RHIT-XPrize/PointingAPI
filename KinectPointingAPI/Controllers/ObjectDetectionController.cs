@@ -50,9 +50,12 @@ namespace KinectPointingAPI.Controllers
             this.blockDetector = new BlockDetector();
         }
 
-        // GET api/ObjectDetection
-        public JsonResult<List<BlockData>> Post()
+        // POST api/ObjectDetection
+        [HttpPost]
+        public JsonResult<Dictionary<string, BlockData>> Post()
         {
+            this.ParsePostBody();
+            System.Diagnostics.Debug.Print("POST body: " + value);
             kinectSensor.Open();
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
@@ -88,23 +91,29 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            List<BlockData> aggregatedData = this.ProcessBlocksFromFrames();
+            Dictionary<string, BlockData> aggregatedData = this.ProcessBlocksFromFrames();
             return Json(aggregatedData);
         }
 
+        private string ParsePostBody()
+        {
+            Request.Content.ReadAsStreamAsync();
+            return "";
+        }
         
-        private List<BlockData> ProcessBlocksFromFrames()
+        private Dictionary<string, BlockData> ProcessBlocksFromFrames()
         {
             Bitmap colorData = this.ConvertCurrFrameToBitmap();
             Point[] blockCenters = this.blockDetector.DetectBlocks(colorData, this.colorFrameDescription.Width, this.colorFrameDescription.Height);
             List<Vector3> augmentedCenters = this.AugmentCentersWithDepth(blockCenters);
 
-            List<BlockData> aggregatedData = new List<BlockData>();
+            Dictionary<string, BlockData> aggregatedData = new Dictionary<string, BlockData>();
             for (int i = 0; i < augmentedCenters.Count; i++)
             {
                 Vector3 currCenter = augmentedCenters[i];
                 BlockData currData = new BlockData(currCenter);
-                aggregatedData.Add(currData);
+                string currentBlock = "Block_" + i;
+                aggregatedData.Add(currentBlock, currData);
             }
 
             return aggregatedData;
