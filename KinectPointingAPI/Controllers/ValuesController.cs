@@ -8,6 +8,7 @@ using System.Numerics;
 using Microsoft.Kinect;
 using Newtonsoft.Json;
 using System.Threading;
+using System.Web.Http.Results;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -101,8 +102,11 @@ namespace KinectPointingAPI.Controllers
         }
 
         // POST api/values
-        public void Post([FromBody]string value)
+        public JsonResult<Dictionary<string, string>> Post([FromBody]string value)
         {
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("hello", "world");
+            return Json(dict);
         }
 
         // PUT api/values/5
