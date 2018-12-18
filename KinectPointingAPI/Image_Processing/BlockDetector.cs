@@ -140,7 +140,6 @@ namespace KinectPointingAPI.Image_Processing
                 double contourArea = CvInvoke.ContourArea(currContour);
                 if (contourArea > MIN_BLOCK_SIZE_PIXELS)
                 {
-                    System.Diagnostics.Debug.Print(contours.Size + ", " + contourArea);
                     filteredContours.Push(currContour);
                 }
             }
@@ -150,7 +149,6 @@ namespace KinectPointingAPI.Image_Processing
         public Point[] findContourCenters(VectorOfVectorOfPoint contours)
         {
             Point[] blockCenters = new Point[contours.Size];
-            System.Diagnostics.Debug.Print("" + contours.Size);
             for (int i = 0; i < contours.Size; i++)
             {
                 VectorOfPoint currContour = contours[i];

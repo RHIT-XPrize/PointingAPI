@@ -161,8 +161,6 @@ namespace KinectPointingAPI.Controllers
                         
                         if(depthPoints[colorIdx].X != Double.NegativeInfinity && depthPoints[colorIdx].Y != Double.NegativeInfinity)
                         {
-                            System.Diagnostics.Debug.Print("i: " + i);
-                            System.Diagnostics.Debug.Print("j: " + j);
                             viableIdx = colorIdx;
                             foundViableIndex = true;
                             break;
