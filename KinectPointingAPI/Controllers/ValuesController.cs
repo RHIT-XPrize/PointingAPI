@@ -22,8 +22,8 @@ namespace KinectPointingAPI.Controllers
             return new string[] { "value1", "value2" };
         }
 
-        // GET api/values/5
-        public string Get(int id)
+        // POST api/values/
+        public JsonResult<Dictionary<string, double>> Post([FromBody]string value)
         {
             KinectSensor kinectSensor = KinectSensor.GetDefault();
             
@@ -108,25 +108,8 @@ namespace KinectPointingAPI.Controllers
                 double val = 1 / (Vector3.Dot(vect, vect2));
                 dict.Add(tile.Key, val);
             }
-            return JsonConvert.SerializeObject(dict, Formatting.Indented);
-        }
 
-        // POST api/values
-        public JsonResult<Dictionary<string, string>> Post([FromBody]string value)
-        {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            dict.Add("hello", "world");
             return Json(dict);
-        }
-
-        // PUT api/values/5
-        public void Put(int id, [FromBody]string value)
-        {
-        }
-
-        // DELETE api/values/5
-        public void Delete(int id)
-        {
         }
     }
 }
