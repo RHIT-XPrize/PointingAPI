@@ -208,6 +208,9 @@
     </Compile>
     <Compile Include="Image_Processing\BlockDetector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\HttpMultipartParser.cs" />
+    <Compile Include="Utilities\Misc.cs" />
+    <Compile Include="Utilities\MultipartParser.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Areas\HelpPage\HelpPage.css" />

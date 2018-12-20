@@ -3,29 +3,39 @@ using System.Collections.Generic;
 using System.Web.Http;
 using System.Numerics;
 using Microsoft.Kinect;
-using Newtonsoft.Json;
 using System.Threading;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Windows.Media.Imaging;
-using System.Runtime.InteropServices;
-
-using KinectPointingAPI.Image_Processing;
 using System.Windows.Media;
 using System.Windows;
 using Point = System.Drawing.Point;
 using System.IO;
 using System.Web.Http.Results;
 
+using KinectPointingAPI.Image_Processing;
+using AntsCode.Util;
+using System.Threading.Tasks;
+
 namespace KinectPointingAPI.Controllers
 {
-    public struct BlockData
+    public class BlockData
     {
         public Vector3 center;
 
         public BlockData(Vector3 center)
         {
             this.center = center;
+        }
+
+        public Dictionary<string, float> ConvertToDict()
+        {
+            Dictionary<string, float> serializedFormat = new Dictionary<string, float>();
+
+            serializedFormat.Add("center_X", this.center.X);
+            serializedFormat.Add("center_Y", this.center.Y);
+            serializedFormat.Add("depth", this.center.Z);
+
+            return serializedFormat;
         }
     }
 
@@ -41,6 +51,7 @@ namespace KinectPointingAPI.Controllers
         private BlockDetector blockDetector;
 
         private static int TIMEOUT_MS = 30000;
+        private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.DetectedBlock";
 
         public ObjectDetectionController()
         {
@@ -52,10 +63,20 @@ namespace KinectPointingAPI.Controllers
 
         // POST api/ObjectDetection
         [HttpPost]
-        public JsonResult<Dictionary<string, BlockData>> Post()
+        public JsonResult<Dictionary<string, List<Dictionary<string, float>>>> Post()
         {
-            this.ParsePostBody();
-            System.Diagnostics.Debug.Print("POST body: " + value);
+            Task<String> task = this.ParsePostBody();
+            String casJSON = "";
+
+            try
+            {
+                task.Wait();
+                casJSON = task.Result;
+            } catch
+            {
+                System.Environment.Exit(-1);
+            }
+
             kinectSensor.Open();
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
@@ -64,7 +85,7 @@ namespace KinectPointingAPI.Controllers
                 time_slept += 5;
                 if(time_slept > TIMEOUT_MS)
                 {
-                    System.Environment.Exit(-1);
+                    System.Environment.Exit(-2);
                 }
             }
 
@@ -91,29 +112,40 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            Dictionary<string, BlockData> aggregatedData = this.ProcessBlocksFromFrames();
-            return Json(aggregatedData);
+            List<BlockData> aggregatedData = this.ProcessBlocksFromFrames();
+            return Json(this.CreateAnnotatorResponse(aggregatedData));
         }
 
-        private string ParsePostBody()
+        private async Task<string> ParsePostBody()
         {
-            Request.Content.ReadAsStreamAsync();
-            return "";
+            return await Request.Content.ReadAsStringAsync();
         }
-        
-        private Dictionary<string, BlockData> ProcessBlocksFromFrames()
+
+        private Dictionary<string, List<Dictionary<string, float>>> CreateAnnotatorResponse(List<BlockData> blocks)
+        {
+            List<Dictionary<string, float>> serializedBlocks = new List<Dictionary<string, float>>();
+
+            foreach(BlockData block in blocks) {
+                serializedBlocks.Add(block.ConvertToDict());
+            }
+
+            Dictionary<String, List<Dictionary<string, float>>> annotation = new Dictionary<String, List<Dictionary<string, float>>>();
+            annotation.Add(ANNOTATION_TYPE_CLASS, serializedBlocks);
+            return annotation;
+        }
+
+        private List<BlockData> ProcessBlocksFromFrames()
         {
             Bitmap colorData = this.ConvertCurrFrameToBitmap();
             Point[] blockCenters = this.blockDetector.DetectBlocks(colorData, this.colorFrameDescription.Width, this.colorFrameDescription.Height);
             List<Vector3> augmentedCenters = this.AugmentCentersWithDepth(blockCenters);
 
-            Dictionary<string, BlockData> aggregatedData = new Dictionary<string, BlockData>();
+            List<BlockData> aggregatedData = new List<BlockData>();
             for (int i = 0; i < augmentedCenters.Count; i++)
             {
                 Vector3 currCenter = augmentedCenters[i];
                 BlockData currData = new BlockData(currCenter);
-                string currentBlock = "Block_" + i;
-                aggregatedData.Add(currentBlock, currData);
+                aggregatedData.Add(currData);
             }
 
             return aggregatedData;
