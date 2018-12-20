@@ -26,10 +26,7 @@ namespace KinectPointingAPI.Controllers
         public string Get(int id)
         {
             KinectSensor kinectSensor = KinectSensor.GetDefault();
-            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
-            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
-            BodyFrameReader bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
-            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
+            
 
             kinectSensor.Open();
             int ms_slept = 0;
@@ -43,13 +40,26 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
+            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
+            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
+            BodyFrameReader bodyFrameReader = null;
+            while (bodyFrameReader == null)
+            {
+                bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
+            }
+            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
+
             // Right Arm
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
             Body[] bodies = null;
             while (!dataReceived)
             {
-                BodyFrame bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                BodyFrame bodyFrame = null;
+                while (bodyFrame == null)
+                {
+                    bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
                 if (bodyFrame.BodyCount > 0)
