@@ -9,6 +9,7 @@ using Microsoft.Kinect;
 using Newtonsoft.Json;
 using System.Threading;
 using System.Web.Http.Results;
+using System.Windows.Media.Media3D;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -53,6 +54,8 @@ namespace KinectPointingAPI.Controllers
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
             Body[] bodies = null;
+            Body body = null;
+
             while (!dataReceived)
             {
                 BodyFrame bodyFrame = null;
@@ -62,18 +65,17 @@ namespace KinectPointingAPI.Controllers
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
-                if (bodyFrame.BodyCount > 0)
+                if (bodyFrame.BodyCount > 0 && bodies[0].IsTracked)
                 {
+                    body = bodies[0];
                     dataReceived = true;
                 }
             }
 
-            Body body = bodies[0];
             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
 
             //// convert the joint points to depth (display) space
             Dictionary<JointType, CameraSpacePoint> jointPoints = new Dictionary<JointType, CameraSpacePoint>();
-
             foreach (JointType jointType in joints.Keys)
             {
                 // sometimes the depth(Z) of an inferred joint may show as negative
@@ -91,21 +93,25 @@ namespace KinectPointingAPI.Controllers
             var bone = bones.First();
             Joint joint0 = joints[bone.Item1];
             Joint joint1 = joints[bone.Item2];
-            Vector3 vect = new Vector3(
+           
+
+            Vector3D vect = new Vector3D(
                 jointPoints[bone.Item2].X - jointPoints[bone.Item1].X,
                 jointPoints[bone.Item2].Y - jointPoints[bone.Item1].Y,
                 jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
                 );
+
+            System.Diagnostics.Debug.Print("" + vect.ToString());
             Dictionary<string, double> dict = new Dictionary<string, double>();
-            Dictionary<string, Vector3> tiles = new Dictionary<string, Vector3> { { "obj1", new Vector3(0, 1, 1) }, { "obj2", new Vector3(1, 0, 1) } }; //GET from Michael
+            Dictionary<string, Vector3D> tiles = new Dictionary<string, Vector3D> { { "obj1", new Vector3D(0, 1, 1) }, { "obj2", new Vector3D(1, 0, 1) } }; //GET from Michael
             foreach (var tile in tiles)
             {
-                Vector3 vect2 = new Vector3(
+                Vector3D vect2 = new Vector3D(
                         tile.Value.X - jointPoints[bone.Item1].X,
                         tile.Value.Y - jointPoints[bone.Item1].Y,
                         tile.Value.Z - jointPoints[bone.Item1].Z
                         );
-                double val = 1 / (Vector3.Dot(vect, vect2));
+                double val = 1 / (Vector3D.DotProduct(vect, vect2));
                 dict.Add(tile.Key, val);
             }
 
