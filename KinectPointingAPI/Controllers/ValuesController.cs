@@ -9,6 +9,7 @@ using Microsoft.Kinect;
 using Newtonsoft.Json;
 using System.Threading;
 using System.Web.Http.Results;
+using System.Windows.Media.Media3D;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -22,14 +23,11 @@ namespace KinectPointingAPI.Controllers
             return new string[] { "value1", "value2" };
         }
 
-        // GET api/values/5
-        public string Get(int id)
+        // POST api/values/
+        public JsonResult<Dictionary<string, double>> Post([FromBody]string value)
         {
             KinectSensor kinectSensor = KinectSensor.GetDefault();
-            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
-            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
-            BodyFrameReader bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
-            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
+            
 
             kinectSensor.Open();
             int ms_slept = 0;
@@ -43,30 +41,41 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
+            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
+            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
+            BodyFrameReader bodyFrameReader = null;
+            while (bodyFrameReader == null)
+            {
+                bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
+            }
+            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
+
             // Right Arm
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
             Body[] bodies = null;
+            Body body = null;
+
             while (!dataReceived)
             {
-                BodyFrame bodyFrame = bodyFrameReader.AcquireLatestFrame();
-                if(bodyFrame != null)
+                BodyFrame bodyFrame = null;
+                while (bodyFrame == null)
                 {
-                    bodies = new Body[bodyFrame.BodyCount];
-                    bodyFrame.GetAndRefreshBodyData(bodies);
-                    if (bodyFrame.BodyCount > 0)
-                    {
-                        dataReceived = true;
-                    }
-                }  
+                    bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                }
+                bodies = new Body[bodyFrame.BodyCount];
+                bodyFrame.GetAndRefreshBodyData(bodies);
+                if (bodyFrame.BodyCount > 0 && bodies[0].IsTracked)
+                {
+                    body = bodies[0];
+                    dataReceived = true;
+                }
             }
 
-            Body body = bodies[0];
             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
 
             //// convert the joint points to depth (display) space
             Dictionary<JointType, CameraSpacePoint> jointPoints = new Dictionary<JointType, CameraSpacePoint>();
-
             foreach (JointType jointType in joints.Keys)
             {
                 // sometimes the depth(Z) of an inferred joint may show as negative
@@ -84,42 +93,29 @@ namespace KinectPointingAPI.Controllers
             var bone = bones.First();
             Joint joint0 = joints[bone.Item1];
             Joint joint1 = joints[bone.Item2];
-            Vector3 vect = new Vector3(
+           
+
+            Vector3D vect = new Vector3D(
                 jointPoints[bone.Item2].X - jointPoints[bone.Item1].X,
                 jointPoints[bone.Item2].Y - jointPoints[bone.Item1].Y,
                 jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
                 );
+
+            System.Diagnostics.Debug.Print("" + vect.ToString());
             Dictionary<string, double> dict = new Dictionary<string, double>();
-            Dictionary<string, Vector3> tiles = new Dictionary<string, Vector3> { { "obj1", new Vector3(0, 1, 1) }, { "obj2", new Vector3(1, 0, 1) } }; //GET from Michael
+            Dictionary<string, Vector3D> tiles = new Dictionary<string, Vector3D> { { "obj1", new Vector3D(0, 1, 1) }, { "obj2", new Vector3D(1, 0, 1) } }; //GET from Michael
             foreach (var tile in tiles)
             {
-                Vector3 vect2 = new Vector3(
+                Vector3D vect2 = new Vector3D(
                         tile.Value.X - jointPoints[bone.Item1].X,
                         tile.Value.Y - jointPoints[bone.Item1].Y,
                         tile.Value.Z - jointPoints[bone.Item1].Z
                         );
-                double val = 1 / (Vector3.Dot(vect, vect2));
+                double val = 1 / (Vector3D.DotProduct(vect, vect2));
                 dict.Add(tile.Key, val);
             }
-            return JsonConvert.SerializeObject(dict, Formatting.Indented);
-        }
 
-        // POST api/values
-        public JsonResult<Dictionary<string, string>> Post([FromBody]string value)
-        {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            dict.Add("hello", "world");
             return Json(dict);
-        }
-
-        // PUT api/values/5
-        public void Put(int id, [FromBody]string value)
-        {
-        }
-
-        // DELETE api/values/5
-        public void Delete(int id)
-        {
         }
     }
 }
