@@ -21,7 +21,7 @@ namespace KinectPointingAPI.Image_Processing
 
         public List<BlockData> DetectBlocks(Bitmap inputImg, int width, int height)
         {
-            Image<Bgra, Byte> img = new Image<Bgra, Byte>("C:\\Users\\duessel\\Documents\\Class\\Senior Project\\Other Resources\\sample_collab_space.jpg");
+            Image<Bgra, Byte> img = new Image<Bgra, Byte>(inputImg);
             width = img.Width;
             height = img.Height;
 
