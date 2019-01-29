@@ -20,20 +20,35 @@ namespace KinectPointingAPI.Controllers
 {
     public class BlockData
     {
-        public Vector3 center;
+        public int id;
+        public int centerX;
+        public int centerY;
+        public int depth;
+        public double rHueVal;
+        public double gHueVal;
+        public double bHueVal;
 
-        public BlockData(Vector3 center)
+        public BlockData(int id, int centerX, int centerY, double rVal, double gVal, double bVal)
         {
-            this.center = center;
+            this.id = id;
+            this.centerX = centerX;
+            this.centerY = centerY;
+            this.rHueVal = rVal;
+            this.gHueVal = gVal;
+            this.bHueVal = bVal;
         }
 
-        public Dictionary<string, float> ConvertToDict()
+        public Dictionary<string, double> ConvertToDict()
         {
-            Dictionary<string, float> serializedFormat = new Dictionary<string, float>();
+            Dictionary<string, double> serializedFormat = new Dictionary<string, double>();
 
-            serializedFormat.Add("center_X", this.center.X);
-            serializedFormat.Add("center_Y", this.center.Y);
-            serializedFormat.Add("depth", this.center.Z);
+            serializedFormat.Add("id", this.id);
+            serializedFormat.Add("center_X", this.centerX);
+            serializedFormat.Add("center_Y", this.centerY);
+            serializedFormat.Add("depth", this.depth);
+            serializedFormat.Add("r", this.rHueVal);
+            serializedFormat.Add("g", this.gHueVal);
+            serializedFormat.Add("b", this.bHueVal);
 
             return serializedFormat;
         }
@@ -63,7 +78,7 @@ namespace KinectPointingAPI.Controllers
 
         // POST api/ObjectDetection
         [HttpPost]
-        public JsonResult<Dictionary<string, List<Dictionary<string, float>>>> Post()
+        public JsonResult<Dictionary<string, List<Dictionary<string, double>>>> Post()
         {
             Task<String> task = this.ParsePostBody();
             String casJSON = "";
@@ -121,15 +136,15 @@ namespace KinectPointingAPI.Controllers
             return await Request.Content.ReadAsStringAsync();
         }
 
-        private Dictionary<string, List<Dictionary<string, float>>> CreateAnnotatorResponse(List<BlockData> blocks)
+        private Dictionary<string, List<Dictionary<string, double>>> CreateAnnotatorResponse(List<BlockData> blocks)
         {
-            List<Dictionary<string, float>> serializedBlocks = new List<Dictionary<string, float>>();
+            List<Dictionary<string, double>> serializedBlocks = new List<Dictionary<string, double>>();
 
             foreach(BlockData block in blocks) {
                 serializedBlocks.Add(block.ConvertToDict());
             }
 
-            Dictionary<String, List<Dictionary<string, float>>> annotation = new Dictionary<String, List<Dictionary<string, float>>>();
+            Dictionary<String, List<Dictionary<string, double>>> annotation = new Dictionary<String, List<Dictionary<string, double>>>();
             annotation.Add(ANNOTATION_TYPE_CLASS, serializedBlocks);
             return annotation;
         }
@@ -137,16 +152,8 @@ namespace KinectPointingAPI.Controllers
         private List<BlockData> ProcessBlocksFromFrames()
         {
             Bitmap colorData = this.ConvertCurrFrameToBitmap();
-            Point[] blockCenters = this.blockDetector.DetectBlocks(colorData, this.colorFrameDescription.Width, this.colorFrameDescription.Height);
-            List<Vector3> augmentedCenters = this.AugmentCentersWithDepth(blockCenters);
-
-            List<BlockData> aggregatedData = new List<BlockData>();
-            for (int i = 0; i < augmentedCenters.Count; i++)
-            {
-                Vector3 currCenter = augmentedCenters[i];
-                BlockData currData = new BlockData(currCenter);
-                aggregatedData.Add(currData);
-            }
+            List<BlockData> aggregatedData = this.blockDetector.DetectBlocks(colorData, this.colorFrameDescription.Width, this.colorFrameDescription.Height);
+            aggregatedData = this.AugmentCentersWithDepth(aggregatedData);
 
             return aggregatedData;
         }
@@ -176,7 +183,7 @@ namespace KinectPointingAPI.Controllers
             return bmp;
         }
 
-        private List<Vector3> AugmentCentersWithDepth(Point[] centers)
+        private List<BlockData> AugmentCentersWithDepth(List<BlockData> blocks)
         {
             int depthWidth = this.currDepthFrame.FrameDescription.Width;
             int depthHeight = this.currDepthFrame.FrameDescription.Height;
@@ -188,10 +195,9 @@ namespace KinectPointingAPI.Controllers
             DepthSpacePoint[] depthPoints = new DepthSpacePoint[colorWidth * colorHeight];
             kinectSensor.CoordinateMapper.MapColorFrameToDepthSpace(depths, depthPoints);
 
-            List<Vector3> augmentedCenters = new List<Vector3>();
-            foreach (Point center in centers)
+            foreach (BlockData block in blocks)
             {
-
+                Point center = new Point(block.centerX, block.centerY);
                 int viableIdx = -1;
                 Boolean foundViableIndex = false;
 
@@ -201,8 +207,8 @@ namespace KinectPointingAPI.Controllers
                     for(int j = -10; j < 10;  j++)
                     {
                         int colorIdx = (center.Y + j) * colorWidth + (center.X + i);
-                        
-                        if(depthPoints[colorIdx].X != Double.NegativeInfinity && depthPoints[colorIdx].Y != Double.NegativeInfinity)
+
+                        if (colorIdx < depthPoints.Length && depthPoints[colorIdx].X != Double.NegativeInfinity && depthPoints[colorIdx].Y != Double.NegativeInfinity)
                         {
                             viableIdx = colorIdx;
                             foundViableIndex = true;
@@ -221,10 +227,10 @@ namespace KinectPointingAPI.Controllers
 
                 int depthIdx = depthY * depthWidth + depthX;
                 int currDepth = Convert.ToInt32(depths[depthIdx]);
-                augmentedCenters.Add(new Vector3(center.X, center.Y, currDepth));
+                block.depth = currDepth;
             }
 
-            return augmentedCenters;
+            return blocks;
         }
     }
 }
