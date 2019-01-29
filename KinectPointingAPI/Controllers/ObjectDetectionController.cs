@@ -46,9 +46,9 @@ namespace KinectPointingAPI.Controllers
             serializedFormat.Add("center_X", this.centerX);
             serializedFormat.Add("center_Y", this.centerY);
             serializedFormat.Add("depth", this.depth);
-            serializedFormat.Add("r", this.rHueVal);
-            serializedFormat.Add("g", this.gHueVal);
-            serializedFormat.Add("b", this.bHueVal);
+            serializedFormat.Add("r_hue", this.rHueVal);
+            serializedFormat.Add("g_hue", this.gHueVal);
+            serializedFormat.Add("b_hue", this.bHueVal);
 
             return serializedFormat;
         }
