@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Web.Http;
-using System.Numerics;
 using Microsoft.Kinect;
 using System.Threading;
 using System.Drawing;
@@ -11,59 +10,25 @@ using System.Windows;
 using Point = System.Drawing.Point;
 using System.IO;
 using System.Web.Http.Results;
+using System.Threading.Tasks;
 
 using KinectPointingAPI.Image_Processing;
-using AntsCode.Util;
-using System.Threading.Tasks;
+using HRC_Datatypes;
+using Newtonsoft.Json.Linq;
 
 namespace KinectPointingAPI.Controllers
 {
-    public class BlockData
-    {
-        public int id;
-        public int centerX;
-        public int centerY;
-        public int depth;
-        public double rHueVal;
-        public double gHueVal;
-        public double bHueVal;
-
-        public BlockData(int id, int centerX, int centerY, double rVal, double gVal, double bVal)
-        {
-            this.id = id;
-            this.centerX = centerX;
-            this.centerY = centerY;
-            this.rHueVal = rVal;
-            this.gHueVal = gVal;
-            this.bHueVal = bVal;
-        }
-
-        public Dictionary<string, double> ConvertToDict()
-        {
-            Dictionary<string, double> serializedFormat = new Dictionary<string, double>();
-
-            serializedFormat.Add("id", this.id);
-            serializedFormat.Add("center_X", this.centerX);
-            serializedFormat.Add("center_Y", this.centerY);
-            serializedFormat.Add("depth", this.depth);
-            serializedFormat.Add("r_hue", this.rHueVal);
-            serializedFormat.Add("g_hue", this.gHueVal);
-            serializedFormat.Add("b_hue", this.bHueVal);
-
-            return serializedFormat;
-        }
-    }
-
-    public class ObjectDetectionController : ApiController
+    public class ObjectDetectionController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
         private KinectSensor kinectSensor;
         private CoordinateMapper coordinateMapper;
         private FrameDescription colorFrameDescription;
+        private BlockDetector blockDetector;
 
+        private List<BlockData> aggregatedData;
         private ColorFrame currColorFrame;
         private DepthFrame currDepthFrame;
 
-        private BlockDetector blockDetector;
 
         private static int TIMEOUT_MS = 30000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.DetectedBlock";
@@ -76,29 +41,15 @@ namespace KinectPointingAPI.Controllers
             this.blockDetector = new BlockDetector();
         }
 
-        // POST api/ObjectDetection
-        [HttpPost]
-        public JsonResult<Dictionary<string, List<Dictionary<string, double>>>> Post()
+        public override void ProcessRequest(JToken casJSON)
         {
-            Task<String> task = this.ParsePostBody();
-            String casJSON = "";
-
-            try
-            {
-                task.Wait();
-                casJSON = task.Result;
-            } catch
-            {
-                System.Environment.Exit(-1);
-            }
-
             kinectSensor.Open();
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
                 Thread.Sleep(5);
                 time_slept += 5;
-                if(time_slept > TIMEOUT_MS)
+                if (time_slept > TIMEOUT_MS)
                 {
                     System.Environment.Exit(-2);
                 }
@@ -127,26 +78,21 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            List<BlockData> aggregatedData = this.ProcessBlocksFromFrames();
-            return Json(this.CreateAnnotatorResponse(aggregatedData));
+            this.aggregatedData = this.ProcessBlocksFromFrames();
         }
 
-        private async Task<string> ParsePostBody()
-        {
-            return await Request.Content.ReadAsStringAsync();
-        }
-
-        private Dictionary<string, List<Dictionary<string, double>>> CreateAnnotatorResponse(List<BlockData> blocks)
+        public override JsonResult<Dictionary<string, List<Dictionary<string, double>>>> GenerateAnnotationResponse()
         {
             List<Dictionary<string, double>> serializedBlocks = new List<Dictionary<string, double>>();
 
-            foreach(BlockData block in blocks) {
+            foreach (BlockData block in this.aggregatedData)
+            {
                 serializedBlocks.Add(block.ConvertToDict());
             }
 
             Dictionary<String, List<Dictionary<string, double>>> annotation = new Dictionary<String, List<Dictionary<string, double>>>();
             annotation.Add(ANNOTATION_TYPE_CLASS, serializedBlocks);
-            return annotation;
+            return Json(annotation);
         }
 
         private List<BlockData> ProcessBlocksFromFrames()
@@ -232,5 +178,7 @@ namespace KinectPointingAPI.Controllers
 
             return blocks;
         }
+
+       
     }
 }

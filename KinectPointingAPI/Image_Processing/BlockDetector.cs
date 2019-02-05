@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Web;
-
 using Emgu.CV;
 using Emgu.CV.Structure;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Util;
-using System.IO;
-using KinectPointingAPI.Controllers;
+
+using HRC_Datatypes;
 
 namespace KinectPointingAPI.Image_Processing
 {
