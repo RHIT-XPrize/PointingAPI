@@ -16,6 +16,7 @@ namespace KinectPointingAPI.Controllers
     public abstract class AnnotationController<T> : ApiController
     {
         [HttpPost]
+        [Route("")]
         public JsonResult<T> Post()
         {
             JToken casJSON = this.ParsePostBody();

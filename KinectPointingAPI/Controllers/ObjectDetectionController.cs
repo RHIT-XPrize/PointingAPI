@@ -18,6 +18,7 @@ using Newtonsoft.Json.Linq;
 
 namespace KinectPointingAPI.Controllers
 {
+    [RoutePrefix("api/ObjectDetection")]
     public class ObjectDetectionController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
         private KinectSensor kinectSensor;
