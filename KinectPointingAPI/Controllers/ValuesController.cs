@@ -138,7 +138,7 @@ namespace KinectPointingAPI.Controllers
                jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
             );
 
-            System.Diagnostics.Debug.Write("Current bone vector: " + boneVector);
+            System.Diagnostics.Debug.Write("\nCurrent bone vector: " + boneVector + "\n");
 
             Dictionary<string, double> dict = new Dictionary<string, double>();
             foreach (BlockData block in blocks)
