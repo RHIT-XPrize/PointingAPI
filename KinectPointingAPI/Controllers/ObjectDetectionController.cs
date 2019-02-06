@@ -44,7 +44,7 @@ namespace KinectPointingAPI.Controllers
             this.blockDetector = new BlockDetector();
         }
 
-        public override void ProcessRequest(JToken allAnnotations)
+        public override void ProcessRequest(JToken casJSON)
         {
             kinectSensor.Open();
             int time_slept = 0;
