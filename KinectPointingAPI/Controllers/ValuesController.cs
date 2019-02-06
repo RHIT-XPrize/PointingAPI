@@ -110,7 +110,7 @@ namespace KinectPointingAPI.Controllers
         private List<BlockData> GetBlocks(JToken allAnnotations)
         {
             JToken detectedBlocks = allAnnotations["DetectedBlock"];
-            System.Diagnostics.Debug.Write(detectedBlocks);
+
             List<BlockData> allBlocks = new List<BlockData>();
             foreach (JToken blockString in detectedBlocks)
             {
@@ -138,6 +138,7 @@ namespace KinectPointingAPI.Controllers
                jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
             );
 
+            System.Diagnostics.Debug.Write("Current bone vector: " + boneVector);
 
             Dictionary<string, double> dict = new Dictionary<string, double>();
             foreach (BlockData block in blocks)
