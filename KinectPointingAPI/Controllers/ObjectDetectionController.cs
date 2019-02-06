@@ -39,10 +39,12 @@ namespace KinectPointingAPI.Controllers
             this.kinectSensor = KinectSensor.GetDefault();
             this.coordinateMapper = kinectSensor.CoordinateMapper;
             this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
+
+            this.aggregatedData = new List<BlockData>();
             this.blockDetector = new BlockDetector();
         }
 
-        public override void ProcessRequest(JToken casJSON)
+        public override void ProcessRequest(JToken allAnnotations)
         {
             kinectSensor.Open();
             int time_slept = 0;

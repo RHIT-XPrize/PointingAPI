@@ -50,7 +50,7 @@ namespace KinectPointingAPI.Controllers
             return await Request.Content.ReadAsStringAsync();
         }
 
-        public abstract void ProcessRequest(JToken casJSON);
+        public abstract void ProcessRequest(JToken allAnnotations);
 
         public abstract JsonResult<T> GenerateAnnotationResponse();
     }
