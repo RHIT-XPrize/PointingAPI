@@ -110,7 +110,7 @@ namespace KinectPointingAPI.Controllers
         private List<BlockData> GetBlocks(JToken allAnnotations)
         {
             JToken detectedBlocks = allAnnotations["DetectedBlock"];
-
+            System.Diagnostics.Debug.Write(detectedBlocks);
             List<BlockData> allBlocks = new List<BlockData>();
             foreach (JToken blockString in detectedBlocks)
             {
