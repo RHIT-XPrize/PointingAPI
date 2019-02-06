@@ -10,28 +10,31 @@ using Newtonsoft.Json;
 using System.Threading;
 using System.Web.Http.Results;
 using System.Windows.Media.Media3D;
+using Newtonsoft.Json.Linq;
+using HRC_Datatypes;
 
 namespace KinectPointingAPI.Controllers
 {
-    public class ValuesController : ApiController
+    [RoutePrefix("api/Pointing")]
+    public class ValuesController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
+        private List<Dictionary<string, double>> blockConfidences;
 
         private static int CONNECT_TIMEOUT_MS = 20000;
-        // GET api/values
-        public IEnumerable<string> Get()
+        private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Pointing";
+
+        public ValuesController()
         {
-            return new string[] { "value1", "value2" };
+            this.blockConfidences = new List<Dictionary<string, double>>();
         }
 
-        // POST api/values/
-        public JsonResult<Dictionary<string, double>> Post([FromBody]string value)
+        public override void ProcessRequest(JToken allAnnotations)
         {
             KinectSensor kinectSensor = KinectSensor.GetDefault();
-            
 
             kinectSensor.Open();
             int ms_slept = 0;
-            while(!kinectSensor.IsAvailable)
+            while (!kinectSensor.IsAvailable)
             {
                 Thread.Sleep(5);
                 ms_slept += 5;
@@ -90,32 +93,68 @@ namespace KinectPointingAPI.Controllers
                 DepthSpacePoint depthSpacePoint = coordinateMapper.MapCameraPointToDepthSpace(position);
                 jointPoints[jointType] = position;
             }
-            var bone = bones.First();
-            Joint joint0 = joints[bone.Item1];
-            Joint joint1 = joints[bone.Item2];
-           
+            Tuple<JointType, JointType> bone = bones.First();
 
-            Vector3D vect = new Vector3D(
-                jointPoints[bone.Item2].X - jointPoints[bone.Item1].X,
-                jointPoints[bone.Item2].Y - jointPoints[bone.Item1].Y,
-                jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
-                );
+            List<BlockData> blocks = this.GetBlocks(allAnnotations);
+            this.ComputeConfidenceScores(bone, jointPoints, blocks);
+        }
 
-            System.Diagnostics.Debug.Print("" + vect.ToString());
-            Dictionary<string, double> dict = new Dictionary<string, double>();
-            Dictionary<string, Vector3D> tiles = new Dictionary<string, Vector3D> { { "obj1", new Vector3D(0, 1, 1) }, { "obj2", new Vector3D(1, 0, 1) } }; //GET from Michael
-            foreach (var tile in tiles)
+        public override JsonResult<Dictionary<string, List<Dictionary<string, double>>>> GenerateAnnotationResponse()
+        {
+            Dictionary<string, List<Dictionary<string, double>>> annotation = new Dictionary<string, List<Dictionary<string, double>>>();
+
+            annotation.Add(ANNOTATION_TYPE_CLASS, this.blockConfidences);
+            return Json(annotation);
+        }
+
+        private List<BlockData> GetBlocks(JToken allAnnotations)
+        {
+            JToken detectedBlocks = allAnnotations["DetectedBlock"];
+
+            List<BlockData> allBlocks = new List<BlockData>();
+            foreach (JToken blockString in detectedBlocks)
             {
-                Vector3D vect2 = new Vector3D(
-                        tile.Value.X - jointPoints[bone.Item1].X,
-                        tile.Value.Y - jointPoints[bone.Item1].Y,
-                        tile.Value.Z - jointPoints[bone.Item1].Z
-                        );
-                double val = 1 / (Vector3D.DotProduct(vect, vect2));
-                dict.Add(tile.Key, val);
+                int id = blockString["id"].ToObject<int>();
+                int centerX = blockString["center_X"].ToObject<int>();
+                int centerY = blockString["center_Y"].ToObject<int>();
+                int depth = blockString["depth"].ToObject<int>();
+                double rHue = blockString["r_hue"].ToObject<double>();
+                double gHue = blockString["g_hue"].ToObject<double>();
+                double bHue = blockString["b_hue"].ToObject<double>();
+
+                BlockData block = new BlockData(id, centerX, centerY, rHue, gHue, bHue);
+                block.depth = depth;
+                allBlocks.Add(block);
             }
 
-            return Json(dict);
+            return allBlocks;
         }
+
+        private void ComputeConfidenceScores(Tuple<JointType, JointType> bone, Dictionary<JointType, CameraSpacePoint> jointPoints, List<BlockData> blocks)
+        {
+            Vector3D boneVector = new Vector3D(
+               jointPoints[bone.Item2].X - jointPoints[bone.Item1].X,
+               jointPoints[bone.Item2].Y - jointPoints[bone.Item1].Y,
+               jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
+            );
+
+
+            Dictionary<string, double> dict = new Dictionary<string, double>();
+            foreach (BlockData block in blocks)
+            {
+                Vector3D distanceToBone = new Vector3D(
+                        block.centerX - jointPoints[bone.Item1].X,
+                        block.centerY - jointPoints[bone.Item1].Y,
+                        block.depth - jointPoints[bone.Item1].Z
+                );
+                double confidence = 1 / (Vector3D.DotProduct(boneVector, distanceToBone));
+
+                Dictionary<string, double> blockConfidence = new Dictionary<string, double>();
+                blockConfidence.Add("id", block.id);
+                blockConfidence.Add("confidence", confidence);
+
+                this.blockConfidences.Add(blockConfidence);
+            }
+        }  
     }
 }
