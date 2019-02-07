@@ -41,6 +41,8 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken allAnnotations)
         {
+            this.kinectSensor = KinectSensor.GetDefault();
+
             int optimalBlockId = this.GetHighestConfidenceId(allAnnotations);
             if (optimalBlockId == -1)
             {

@@ -18,9 +18,13 @@ namespace KinectPointingAPI.Controllers
     [RoutePrefix("api/Pointing")]
     public class ValuesController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
+        private KinectSensor kinectSensor;
         private List<Dictionary<string, double>> blockConfidences;
+        private ColorFrame currColorFrame;
+
 
         private static int CONNECT_TIMEOUT_MS = 20000;
+        private static int POINTING_TIMEOUT_MS = 20000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Pointing";
 
         public ValuesController()
@@ -30,37 +34,45 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken allAnnotations)
         {
-            KinectSensor kinectSensor = KinectSensor.GetDefault();
+            kinectSensor = KinectSensor.GetDefault();
 
             kinectSensor.Open();
             int ms_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
-                Thread.Sleep(5);
-                ms_slept += 5;
+                Thread.Sleep(500);
+                ms_slept += 500;
+                System.Diagnostics.Debug.WriteLine("Waiting on sensor...");
                 if (ms_slept >= CONNECT_TIMEOUT_MS)
                 {
                     System.Environment.Exit(-1);
                 }
             }
 
-            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
-            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
+            // Grab current color frame for block center mapping later
+            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
+            while(this.currColorFrame == null)
+            {
+                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
+            }
+
             BodyFrameReader bodyFrameReader = null;
             while (bodyFrameReader == null)
             {
                 bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
             }
-            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
 
             // Right Arm
+            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
             Body[] bodies = null;
             Body body = null;
-
+            ms_slept = 0;
             while (!dataReceived)
             {
+                System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
+
                 BodyFrame bodyFrame = null;
                 while (bodyFrame == null)
                 {
@@ -73,11 +85,21 @@ namespace KinectPointingAPI.Controllers
                     body = bodies[0];
                     dataReceived = true;
                 }
-            }
+                Thread.Sleep(500);
 
-            IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+                ms_slept += 500;
+                if (ms_slept >= POINTING_TIMEOUT_MS)
+                {
+                    System.Environment.Exit(-1);
+                }
+            }
+            colorFrameReader.Dispose();
+            bodyFrameReader.Dispose();
 
             //// convert the joint points to depth (display) space
+            ///
+            IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
+            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
             Dictionary<JointType, CameraSpacePoint> jointPoints = new Dictionary<JointType, CameraSpacePoint>();
             foreach (JointType jointType in joints.Keys)
             {
@@ -117,13 +139,17 @@ namespace KinectPointingAPI.Controllers
                 int id = blockString["id"].ToObject<int>();
                 int centerX = blockString["center_X"].ToObject<int>();
                 int centerY = blockString["center_Y"].ToObject<int>();
-                int depth = blockString["depth"].ToObject<int>();
+                double cameraSpaceCenterX = blockString["camera_space_center_X"].ToObject<double>();
+                double cameraSpaceCenterY = blockString["camera_space_center_Y"].ToObject<double>();
+                double cameraSpaceDepth = blockString["camera_space_depth"].ToObject<double>();
                 double rHue = blockString["r_hue"].ToObject<double>();
                 double gHue = blockString["g_hue"].ToObject<double>();
                 double bHue = blockString["b_hue"].ToObject<double>();
 
                 BlockData block = new BlockData(id, centerX, centerY, rHue, gHue, bHue);
-                block.depth = depth;
+                block.cameraSpaceCenterX = cameraSpaceCenterX;
+                block.cameraSpaceCenterY = cameraSpaceCenterY;
+                block.cameraSpaceDepth = cameraSpaceDepth;
                 allBlocks.Add(block);
             }
 
@@ -132,30 +158,35 @@ namespace KinectPointingAPI.Controllers
 
         private void ComputeConfidenceScores(Tuple<JointType, JointType> bone, Dictionary<JointType, CameraSpacePoint> jointPoints, List<BlockData> blocks)
         {
-            Vector3D boneVector = new Vector3D(
-               jointPoints[bone.Item2].X - jointPoints[bone.Item1].X,
-               jointPoints[bone.Item2].Y - jointPoints[bone.Item1].Y,
-               jointPoints[bone.Item2].Z - jointPoints[bone.Item1].Z
+            JointType handCenterFixture = bone.Item1; 
+            JointType fingerEndFixture = bone.Item2;
+            Vector3D pointingVector = new Vector3D(
+               jointPoints[fingerEndFixture].X - jointPoints[handCenterFixture].X,
+               jointPoints[fingerEndFixture].Y - jointPoints[handCenterFixture].Y,
+               jointPoints[fingerEndFixture].Z - jointPoints[handCenterFixture].Z
             );
+            System.Diagnostics.Debug.WriteLine("\n==================================");
 
-            System.Diagnostics.Debug.Write("\nCurrent bone vector: " + boneVector + "\n");
+            System.Diagnostics.Debug.WriteLine("Hand center point: X=" + jointPoints[handCenterFixture].X + ", Y=" + jointPoints[handCenterFixture].Y + ", Z=" + jointPoints[handCenterFixture].Z);
+            System.Diagnostics.Debug.WriteLine("End of finger point: X=" + jointPoints[fingerEndFixture].X + ", Y=" + jointPoints[fingerEndFixture].Y + ", Z=" + jointPoints[fingerEndFixture].Z);
+            System.Diagnostics.Debug.WriteLine("Current bone vector: " + pointingVector);
 
             Dictionary<string, double> dict = new Dictionary<string, double>();
             foreach (BlockData block in blocks)
             {
-                Vector3D distanceToBone = new Vector3D(
-                        block.centerX - jointPoints[bone.Item1].X,
-                        block.centerY - jointPoints[bone.Item1].Y,
-                        block.depth - jointPoints[bone.Item1].Z
+                Vector3D blockToHandCenter = new Vector3D(
+                        block.cameraSpaceCenterX - jointPoints[handCenterFixture].X,
+                        block.cameraSpaceCenterY - jointPoints[handCenterFixture].Y,
+                        block.cameraSpaceDepth - jointPoints[handCenterFixture].Z
                 );
-                double confidence = 1 / (Vector3D.DotProduct(boneVector, distanceToBone));
-
+                double confidence = Vector3D.DotProduct(pointingVector, blockToHandCenter) / (pointingVector.Length * blockToHandCenter.Length);
+                System.Diagnostics.Debug.WriteLine("Vector to center of hand for block id=" + block.id + " and X=" + block.cameraSpaceCenterX + ", Y=" + block.cameraSpaceCenterY + ", Z=" + block.cameraSpaceDepth + ": " + blockToHandCenter);
                 Dictionary<string, double> blockConfidence = new Dictionary<string, double>();
                 blockConfidence.Add("id", block.id);
                 blockConfidence.Add("confidence", confidence);
 
                 this.blockConfidences.Add(blockConfidence);
             }
-        }  
+        }
     }
 }

@@ -21,7 +21,7 @@ namespace KinectPointingAPI.Image_Processing
             int radius = 20;
             int filledCircle = -1;
 
-            CvInvoke.Circle(img, blockCenter, radius, new MCvScalar(255, 255, 255, 0), filledCircle);
+            CvInvoke.Circle(img, blockCenter, radius, new MCvScalar(0, 0, 0, 1), filledCircle);
             this.DisplayImage(img);
         }
 

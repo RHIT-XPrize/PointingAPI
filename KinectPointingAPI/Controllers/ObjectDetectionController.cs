@@ -30,7 +30,6 @@ namespace KinectPointingAPI.Controllers
         private ColorFrame currColorFrame;
         private DepthFrame currDepthFrame;
 
-
         private static int TIMEOUT_MS = 30000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.DetectedBlock";
 
@@ -46,6 +45,7 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken casJSON)
         {
+            kinectSensor = KinectSensor.GetDefault();
             kinectSensor.Open();
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
@@ -59,7 +59,6 @@ namespace KinectPointingAPI.Controllers
             }
 
             ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
-
             bool dataReceived = false;
             while (!dataReceived)
             {
@@ -69,6 +68,7 @@ namespace KinectPointingAPI.Controllers
                     dataReceived = true;
                 }
             }
+            colorFrameReader.Dispose();
 
             DepthFrameReader depthFrameReader = kinectSensor.DepthFrameSource.OpenReader();
             dataReceived = false;
@@ -80,8 +80,11 @@ namespace KinectPointingAPI.Controllers
                     dataReceived = true;
                 }
             }
+            depthFrameReader.Dispose();
 
             this.aggregatedData = this.ProcessBlocksFromFrames();
+            this.currColorFrame = null;
+            this.currDepthFrame = null;
         }
 
         public override JsonResult<Dictionary<string, List<Dictionary<string, double>>>> GenerateAnnotationResponse()
@@ -102,7 +105,7 @@ namespace KinectPointingAPI.Controllers
         {
             Bitmap colorData = this.ConvertCurrFrameToBitmap();
             List<BlockData> aggregatedData = this.blockDetector.DetectBlocks(colorData, this.colorFrameDescription.Width, this.colorFrameDescription.Height);
-            aggregatedData = this.AugmentCentersWithDepth(aggregatedData);
+            aggregatedData = this.ConvertCentersToCameraSpace(aggregatedData);
 
             return aggregatedData;
         }
@@ -132,7 +135,7 @@ namespace KinectPointingAPI.Controllers
             return bmp;
         }
 
-        private List<BlockData> AugmentCentersWithDepth(List<BlockData> blocks)
+        private List<BlockData> ConvertCentersToCameraSpace(List<BlockData> blocks)
         {
             int depthWidth = this.currDepthFrame.FrameDescription.Width;
             int depthHeight = this.currDepthFrame.FrameDescription.Height;
@@ -141,8 +144,8 @@ namespace KinectPointingAPI.Controllers
 
             int colorWidth = this.colorFrameDescription.Width;
             int colorHeight = this.colorFrameDescription.Height;
-            DepthSpacePoint[] depthPoints = new DepthSpacePoint[colorWidth * colorHeight];
-            kinectSensor.CoordinateMapper.MapColorFrameToDepthSpace(depths, depthPoints);
+            CameraSpacePoint[] cameraPoints = new CameraSpacePoint[colorWidth * colorHeight];
+            kinectSensor.CoordinateMapper.MapColorFrameToCameraSpace(depths, cameraPoints);
 
             foreach (BlockData block in blocks)
             {
@@ -151,37 +154,39 @@ namespace KinectPointingAPI.Controllers
                 Boolean foundViableIndex = false;
 
                 // Find a nearby point for which the depth is actually defined, as depth resolution is smaller than color resolution -> not all color points have a depth
-                for(int i = -10; i < 10; i++)
+                for (int i = -20; i < 20; i++)
                 {
-                    for(int j = -10; j < 10;  j++)
+                    for (int j = -20; j < 20; j++)
                     {
                         int colorIdx = (center.Y + j) * colorWidth + (center.X + i);
 
-                        if (colorIdx < depthPoints.Length && depthPoints[colorIdx].X != Double.NegativeInfinity && depthPoints[colorIdx].Y != Double.NegativeInfinity)
+                        if (colorIdx > 0 && colorIdx < cameraPoints.Length && cameraPoints[colorIdx].X != Double.NegativeInfinity
+                            && cameraPoints[colorIdx].Y != Double.NegativeInfinity && cameraPoints[colorIdx].Z != Double.NegativeInfinity)
                         {
+
                             viableIdx = colorIdx;
                             foundViableIndex = true;
                             break;
                         }
                     }
 
-                    if(foundViableIndex)
+                    if (foundViableIndex)
                     {
                         break;
                     }
                 }
 
-                int depthX = foundViableIndex ? Convert.ToInt32(depthPoints[viableIdx].X) : 0;
-                int depthY = foundViableIndex ? Convert.ToInt32(depthPoints[viableIdx].Y) : 0;
+                double cameraX = foundViableIndex ? Convert.ToDouble(cameraPoints[viableIdx].X) : 0;
+                double cameraY = foundViableIndex ? Convert.ToDouble(cameraPoints[viableIdx].Y) : 0;
+                double currDepth = foundViableIndex ? Convert.ToDouble(cameraPoints[viableIdx].Z) : 0;
 
-                int depthIdx = depthY * depthWidth + depthX;
-                int currDepth = Convert.ToInt32(depths[depthIdx]);
-                block.depth = currDepth;
+
+                block.cameraSpaceCenterX = cameraX;
+                block.cameraSpaceCenterY = cameraY;
+                block.cameraSpaceDepth = currDepth;
             }
 
             return blocks;
         }
-
-       
     }
 }
