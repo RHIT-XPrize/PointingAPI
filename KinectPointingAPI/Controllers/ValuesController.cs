@@ -12,6 +12,7 @@ using System.Web.Http.Results;
 using System.Windows.Media.Media3D;
 using Newtonsoft.Json.Linq;
 using HRC_Datatypes;
+using KinectPointingAPI.Sensor;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -30,9 +31,8 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken allAnnotations)
         {
-            KinectSensor kinectSensor = KinectSensor.GetDefault();
+            KinectSensor kinectSensor = SensorHandler.GetSensor();
 
-            kinectSensor.Open();
             int ms_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
@@ -46,11 +46,6 @@ namespace KinectPointingAPI.Controllers
 
             CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
             FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
-            BodyFrameReader bodyFrameReader = null;
-            while (bodyFrameReader == null)
-            {
-                bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
-            }
             List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
 
             // Right Arm
@@ -64,7 +59,7 @@ namespace KinectPointingAPI.Controllers
                 BodyFrame bodyFrame = null;
                 while (bodyFrame == null)
                 {
-                    bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                    bodyFrame = SensorHandler.GetBodyFrame();
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
