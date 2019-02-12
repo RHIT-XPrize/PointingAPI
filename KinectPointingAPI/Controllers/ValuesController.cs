@@ -12,6 +12,7 @@ using System.Web.Http.Results;
 using System.Windows.Media.Media3D;
 using Newtonsoft.Json.Linq;
 using HRC_Datatypes;
+using KinectPointingAPI.Sensor;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -34,9 +35,8 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken allAnnotations)
         {
-            kinectSensor = KinectSensor.GetDefault();
+            KinectSensor kinectSensor = SensorHandler.GetSensor();
 
-            kinectSensor.Open();
             int ms_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
@@ -49,20 +49,9 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            // Grab current color frame for block center mapping later
-            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
-            while(this.currColorFrame == null)
-            {
-                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
-            }
-
-            colorFrameReader.Dispose();
-
-            BodyFrameReader bodyFrameReader = null;
-            while (bodyFrameReader == null)
-            {
-                bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
-            }
+            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
+            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
+            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
 
             // Right Arm
             List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
@@ -78,7 +67,7 @@ namespace KinectPointingAPI.Controllers
                 System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                 while (bodyFrame == null)
                 {
-                    bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                    bodyFrame = SensorHandler.GetBodyFrame();
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);

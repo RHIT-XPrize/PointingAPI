@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using KinectPointingAPI.Image_Processing;
 using HRC_Datatypes;
 using Newtonsoft.Json.Linq;
+using KinectPointingAPI.Sensor;
 
 namespace KinectPointingAPI.Controllers
 {
@@ -35,7 +36,7 @@ namespace KinectPointingAPI.Controllers
 
         public ObjectDetectionController()
         {
-            this.kinectSensor = KinectSensor.GetDefault();
+            this.kinectSensor = SensorHandler.GetSensor();
             this.coordinateMapper = kinectSensor.CoordinateMapper;
             this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
 
@@ -58,23 +59,20 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
             bool dataReceived = false;
             while (!dataReceived)
             {
-                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
+                this.currColorFrame = SensorHandler.GetColorFrame();
                 if (this.currColorFrame != null)
                 {
                     dataReceived = true;
                 }
             }
-            colorFrameReader.Dispose();
-
-            DepthFrameReader depthFrameReader = kinectSensor.DepthFrameSource.OpenReader();
+            
             dataReceived = false;
             while (!dataReceived)
             {
-                this.currDepthFrame = depthFrameReader.AcquireLatestFrame();
+                this.currDepthFrame = SensorHandler.GetDepthFrame();
                 if (this.currDepthFrame != null)
                 {
                     dataReceived = true;
