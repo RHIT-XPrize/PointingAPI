@@ -24,7 +24,7 @@ namespace KinectPointingAPI.Controllers
 
 
         private static int CONNECT_TIMEOUT_MS = 20000;
-        private static int POINTING_TIMEOUT_MS = 20000;
+        private static int POINTING_TIMEOUT_MS = 60000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Pointing";
 
         public ValuesController()
@@ -71,23 +71,24 @@ namespace KinectPointingAPI.Controllers
             ms_slept = 0;
             while (!dataReceived)
             {
-                System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
 
                 BodyFrame bodyFrame = null;
                 while (bodyFrame == null)
                 {
+                    System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                     bodyFrame = bodyFrameReader.AcquireLatestFrame();
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
                 if (bodyFrame.BodyCount > 0 && bodies[0].IsTracked)
                 {
+                    System.Diagnostics.Debug.WriteLine("Found body frame.");
                     body = bodies[0];
                     dataReceived = true;
                 }
-                Thread.Sleep(500);
+                Thread.Sleep(100);
 
-                ms_slept += 500;
+                ms_slept += 100;
                 if (ms_slept >= POINTING_TIMEOUT_MS)
                 {
                     System.Environment.Exit(-1);
