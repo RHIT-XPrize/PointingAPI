@@ -56,6 +56,8 @@ namespace KinectPointingAPI.Controllers
                 this.currColorFrame = colorFrameReader.AcquireLatestFrame();
             }
 
+            colorFrameReader.Dispose();
+
             BodyFrameReader bodyFrameReader = null;
             while (bodyFrameReader == null)
             {
@@ -73,19 +75,30 @@ namespace KinectPointingAPI.Controllers
             {
 
                 BodyFrame bodyFrame = null;
+                System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                 while (bodyFrame == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                     bodyFrame = bodyFrameReader.AcquireLatestFrame();
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
-                if (bodyFrame.BodyCount > 0 && bodies[0].IsTracked)
+                System.Diagnostics.Debug.WriteLine("Checking if body is detected in frame...");
+                System.Diagnostics.Debug.WriteLine(bodyFrame.BodyCount + " bodies detected");
+                int count = 0;
+                if (bodyFrame.BodyCount > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("Found body frame.");
-                    body = bodies[0];
-                    dataReceived = true;
+                    foreach (Body b in bodies) {
+                        if (b.IsTracked)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Found body frame.");
+                            body = b;
+                            dataReceived = true;
+                            count++;
+                        }
+                    }
                 }
+
+                System.Diagnostics.Debug.WriteLine(count + " bodies tracked");
                 Thread.Sleep(100);
 
                 ms_slept += 100;
@@ -93,8 +106,8 @@ namespace KinectPointingAPI.Controllers
                 {
                     System.Environment.Exit(-1);
                 }
+                bodyFrame.Dispose();
             }
-            colorFrameReader.Dispose();
             bodyFrameReader.Dispose();
 
             //// convert the joint points to depth (display) space
