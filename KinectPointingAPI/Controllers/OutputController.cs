@@ -130,14 +130,18 @@ namespace KinectPointingAPI.Controllers
             bool dataReceived = false;
             while (!dataReceived)
             {
+                System.Diagnostics.Debug.WriteLine("About to acquire color frame for drawing!");
                 this.currColorFrame = colorFrameReader.AcquireLatestFrame();
                 if (this.currColorFrame != null)
                 {
                     dataReceived = true;
                 }
             }
+            System.Diagnostics.Debug.WriteLine("Found color frame for drawing!");
             Bitmap currFrame = this.ConvertCurrFrameToBitmap();
             this.blockDisplay.DisplayBlockOnImage(currFrame, blockToDisplay);
+
+            colorFrameReader.Dispose();
             this.feedback = "Found block!";
         }
 
