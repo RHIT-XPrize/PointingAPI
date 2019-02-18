@@ -40,6 +40,7 @@ namespace KinectPointingAPI.Controllers
             }
 
             JObject payloadContent = JObject.Parse(casJSON);
+            System.Diagnostics.Debug.Write(payloadContent);
             JToken allAnnotations = payloadContent["_views"]["_InitialView"];
 
             return allAnnotations;

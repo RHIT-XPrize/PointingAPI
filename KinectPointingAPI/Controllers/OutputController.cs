@@ -41,6 +41,8 @@ namespace KinectPointingAPI.Controllers
 
         public override void ProcessRequest(JToken allAnnotations)
         {
+            this.kinectSensor = KinectSensor.GetDefault();
+
             int optimalBlockId = this.GetHighestConfidenceId(allAnnotations);
             if (optimalBlockId == -1)
             {
@@ -111,32 +113,35 @@ namespace KinectPointingAPI.Controllers
 
         private void DisplayBestBlock(BlockData blockToDisplay)
         {
-            //kinectSensor.Open();
-            //int time_slept = 0;
-            //while (!kinectSensor.IsAvailable)
-            //{
-            //    Thread.Sleep(5);
-            //    time_slept += 5;
-            //    if (time_slept > CONNECT_TIMEOUT_MS)
-            //    {
-            //        System.Environment.Exit(-2);
-            //    }
-            //}
+            kinectSensor.Open();
+            int time_slept = 0;
+            while (!kinectSensor.IsAvailable)
+            {
+                Thread.Sleep(5);
+                time_slept += 5;
+                if (time_slept > CONNECT_TIMEOUT_MS)
+                {
+                    System.Environment.Exit(-2);
+                }
+            }
 
-            //ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
+            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
 
-            //bool dataReceived = false;
-            //while (!dataReceived)
-            //{
-            //    this.currColorFrame = colorFrameReader.AcquireLatestFrame();
-            //    if (this.currColorFrame != null)
-            //    {
-            //        dataReceived = true;
-            //    }
-            //}
-            //Bitmap currFrame = this.ConvertCurrFrameToBitmap();
-            Bitmap currFrame = null;
+            bool dataReceived = false;
+            while (!dataReceived)
+            {
+                System.Diagnostics.Debug.WriteLine("About to acquire color frame for drawing!");
+                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
+                if (this.currColorFrame != null)
+                {
+                    dataReceived = true;
+                }
+            }
+            System.Diagnostics.Debug.WriteLine("Found color frame for drawing!");
+            Bitmap currFrame = this.ConvertCurrFrameToBitmap();
             this.blockDisplay.DisplayBlockOnImage(currFrame, blockToDisplay);
+
+            colorFrameReader.Dispose();
             this.feedback = "Found block!";
         }
 

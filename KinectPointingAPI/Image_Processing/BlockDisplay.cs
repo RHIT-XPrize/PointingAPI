@@ -13,6 +13,9 @@ namespace KinectPointingAPI.Image_Processing
         private static int OUTPUT_WIDTH = 640;
         private static int OUTPUT_HEIGHT = 480;
 
+        private static int OUTPUT_WINDOW_WIDTH = 1920;
+        private static int OUTPUT_WINDOW_HEIGHT = 1080;
+
         public void DisplayBlockOnImage(Bitmap inputImg, BlockData blockToDisplay)
         {
             Image<Bgra, Byte> img = new Image<Bgra, Byte>(inputImg);
@@ -21,7 +24,7 @@ namespace KinectPointingAPI.Image_Processing
             int radius = 20;
             int filledCircle = -1;
 
-            CvInvoke.Circle(img, blockCenter, radius, new MCvScalar(255, 255, 255, 0), filledCircle);
+            CvInvoke.Circle(img, blockCenter, radius, new MCvScalar(0, 0, 0, 255), filledCircle);
             this.DisplayImage(img);
         }
 
@@ -31,7 +34,7 @@ namespace KinectPointingAPI.Image_Processing
             CvInvoke.Resize(img, img, new Size(OUTPUT_WIDTH, OUTPUT_HEIGHT));
             
             viewer.Image = img;
-            viewer.Size = new Size(OUTPUT_WIDTH, OUTPUT_HEIGHT);
+            viewer.Size = new Size(OUTPUT_WINDOW_WIDTH, OUTPUT_WINDOW_HEIGHT);
             viewer.ShowDialog();
         }
     }
