@@ -55,7 +55,7 @@ namespace KinectPointingAPI.Sensor
         public static DepthFrame GetDepthFrame()
         {
             GetSensor();
-            return ((DepthFrameReader)HttpContext.Current.Session["BodyFrameReader"]).AcquireLatestFrame();
+            return ((DepthFrameReader)HttpContext.Current.Session["DepthFrameReader"]).AcquireLatestFrame();
         }
     }
 }
