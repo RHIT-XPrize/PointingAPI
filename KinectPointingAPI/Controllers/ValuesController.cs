@@ -19,9 +19,7 @@ namespace KinectPointingAPI.Controllers
     [RoutePrefix("api/Pointing")]
     public class ValuesController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
-        private KinectSensor kinectSensor;
         private List<Dictionary<string, double>> blockConfidences;
-        private ColorFrame currColorFrame;
 
 
         private static int CONNECT_TIMEOUT_MS = 20000;
@@ -51,9 +49,6 @@ namespace KinectPointingAPI.Controllers
 
             CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
             FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
-            List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
-
-            // Right Arm
             List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
@@ -97,12 +92,10 @@ namespace KinectPointingAPI.Controllers
                 }
                 bodyFrame.Dispose();
             }
-            bodyFrameReader.Dispose();
 
             //// convert the joint points to depth (display) space
             ///
             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
-            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
             Dictionary<JointType, CameraSpacePoint> jointPoints = new Dictionary<JointType, CameraSpacePoint>();
             foreach (JointType jointType in joints.Keys)
             {

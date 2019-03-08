@@ -78,7 +78,6 @@ namespace KinectPointingAPI.Controllers
                     dataReceived = true;
                 }
             }
-            depthFrameReader.Dispose();
 
             this.aggregatedData = this.ProcessBlocksFromFrames();
             this.currColorFrame = null;
