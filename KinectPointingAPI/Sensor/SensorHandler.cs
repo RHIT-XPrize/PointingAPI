@@ -31,31 +31,45 @@ namespace KinectPointingAPI.Sensor
                 }
 
                 HttpContext.Current.Session["Sensor"] = sensor;
-                HttpContext.Current.Session["ColorFrameReader"] = sensor.ColorFrameSource.OpenReader();
-                HttpContext.Current.Session["BodyFrameReader"] = sensor.BodyFrameSource.OpenReader();
-                HttpContext.Current.Session["DepthFrameReader"] = sensor.DepthFrameSource.OpenReader();
-                HttpContext.Current.Session["CoordinateMapper"] = sensor.CoordinateMapper;
             }
 
-            return (KinectSensor) HttpContext.Current.Session["Sensor"];
+            return (KinectSensor)HttpContext.Current.Session["Sensor"];
         }
 
         public static ColorFrame GetColorFrame()
         {
-            GetSensor();
-            return ((ColorFrameReader)HttpContext.Current.Session["ColorFrameReader"]).AcquireLatestFrame();
+            KinectSensor currSensor = GetSensor();
+
+            ColorFrame frame = null;
+            using (ColorFrameReader frameReader = currSensor.ColorFrameSource.OpenReader())
+            {
+                frame = frameReader.AcquireLatestFrame();
+            }
+            return frame;
         }
 
         public static BodyFrame GetBodyFrame()
         {
-            GetSensor();
-            return ((BodyFrameReader)HttpContext.Current.Session["BodyFrameReader"]).AcquireLatestFrame();
+            KinectSensor currSensor = GetSensor();
+
+            BodyFrame frame = null;
+            using (BodyFrameReader frameReader = currSensor.BodyFrameSource.OpenReader())
+            {
+                frame = frameReader.AcquireLatestFrame();
+            }
+            return frame;
         }
 
         public static DepthFrame GetDepthFrame()
         {
-            GetSensor();
-            return ((DepthFrameReader)HttpContext.Current.Session["DepthFrameReader"]).AcquireLatestFrame();
+            KinectSensor currSensor = GetSensor();
+
+            DepthFrame frame = null;
+            using (DepthFrameReader frameReader = currSensor.DepthFrameSource.OpenReader())
+            {
+                frame = frameReader.AcquireLatestFrame();
+            }
+            return frame;
         }
     }
 }
