@@ -21,7 +21,6 @@ namespace KinectPointingAPI.Controllers
     {
         private List<Dictionary<string, double>> blockConfidences;
 
-
         private static int CONNECT_TIMEOUT_MS = 20000;
         private static int POINTING_TIMEOUT_MS = 60000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Pointing";
@@ -57,7 +56,6 @@ namespace KinectPointingAPI.Controllers
             ms_slept = 0;
             while (!dataReceived)
             {
-
                 BodyFrame bodyFrame = null;
                 System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                 while (bodyFrame == null)

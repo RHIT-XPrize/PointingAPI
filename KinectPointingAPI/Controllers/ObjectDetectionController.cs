@@ -22,7 +22,6 @@ namespace KinectPointingAPI.Controllers
     [RoutePrefix("api/ObjectDetection")]
     public class ObjectDetectionController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
-        private KinectSensor kinectSensor;
         private CoordinateMapper coordinateMapper;
         private FrameDescription colorFrameDescription;
         private BlockDetector blockDetector;
@@ -36,18 +35,16 @@ namespace KinectPointingAPI.Controllers
 
         public ObjectDetectionController()
         {
-            this.kinectSensor = SensorHandler.GetSensor();
-            this.coordinateMapper = kinectSensor.CoordinateMapper;
-            this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
-
             this.aggregatedData = new List<BlockData>();
             this.blockDetector = new BlockDetector();
         }
 
         public override void ProcessRequest(JToken casJSON)
         {
-            kinectSensor = KinectSensor.GetDefault();
-            kinectSensor.Open();
+            KinectSensor kinectSensor = SensorHandler.GetSensor();
+            this.coordinateMapper = kinectSensor.CoordinateMapper;
+            this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
+
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
@@ -142,7 +139,7 @@ namespace KinectPointingAPI.Controllers
             int colorWidth = this.colorFrameDescription.Width;
             int colorHeight = this.colorFrameDescription.Height;
             CameraSpacePoint[] cameraPoints = new CameraSpacePoint[colorWidth * colorHeight];
-            kinectSensor.CoordinateMapper.MapColorFrameToCameraSpace(depths, cameraPoints);
+            this.coordinateMapper.MapColorFrameToCameraSpace(depths, cameraPoints);
 
             foreach (BlockData block in blocks)
             {
