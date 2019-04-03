@@ -7,8 +7,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using System.Web.Http.Results;
-
-using KinectPointingAPI.Image_Processing;
+using System.Web.SessionState;
 using Newtonsoft.Json.Linq;
 
 namespace KinectPointingAPI.Controllers

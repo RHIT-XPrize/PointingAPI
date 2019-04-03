@@ -12,31 +12,28 @@ using System.Web.Http.Results;
 using System.Windows.Media.Media3D;
 using Newtonsoft.Json.Linq;
 using HRC_Datatypes;
+using KinectPointingAPI.Sensor;
 
 namespace KinectPointingAPI.Controllers
 {
     [RoutePrefix("api/Pointing")]
-    public class ValuesController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
+    public class PointingController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
-        private KinectSensor kinectSensor;
         private List<Dictionary<string, double>> blockConfidences;
-        private ColorFrame currColorFrame;
-
 
         private static int CONNECT_TIMEOUT_MS = 20000;
         private static int POINTING_TIMEOUT_MS = 60000;
         private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Pointing";
 
-        public ValuesController()
+        public PointingController()
         {
             this.blockConfidences = new List<Dictionary<string, double>>();
         }
 
         public override void ProcessRequest(JToken allAnnotations)
         {
-            kinectSensor = KinectSensor.GetDefault();
+            KinectSensor kinectSensor = SensorHandler.GetSensor();
 
-            kinectSensor.Open();
             int ms_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
@@ -49,22 +46,8 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            // Grab current color frame for block center mapping later
-            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
-            while(this.currColorFrame == null)
-            {
-                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
-            }
-
-            colorFrameReader.Dispose();
-
-            BodyFrameReader bodyFrameReader = null;
-            while (bodyFrameReader == null)
-            {
-                bodyFrameReader = kinectSensor.BodyFrameSource.OpenReader();
-            }
-
-            // Right Arm
+            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
+            FrameDescription frameDescription = kinectSensor.DepthFrameSource.FrameDescription;
             List<Tuple<JointType, JointType>> bones = new List<Tuple<JointType, JointType>>();
             bones.Add(new Tuple<JointType, JointType>(JointType.HandRight, JointType.HandTipRight));
             bool dataReceived = false;
@@ -73,12 +56,11 @@ namespace KinectPointingAPI.Controllers
             ms_slept = 0;
             while (!dataReceived)
             {
-
                 BodyFrame bodyFrame = null;
                 System.Diagnostics.Debug.WriteLine("Waiting on body frame...");
                 while (bodyFrame == null)
                 {
-                    bodyFrame = bodyFrameReader.AcquireLatestFrame();
+                    bodyFrame = SensorHandler.GetBodyFrame();
                 }
                 bodies = new Body[bodyFrame.BodyCount];
                 bodyFrame.GetAndRefreshBodyData(bodies);
@@ -108,12 +90,10 @@ namespace KinectPointingAPI.Controllers
                 }
                 bodyFrame.Dispose();
             }
-            bodyFrameReader.Dispose();
 
             //// convert the joint points to depth (display) space
             ///
             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
-            CoordinateMapper coordinateMapper = kinectSensor.CoordinateMapper;
             Dictionary<JointType, CameraSpacePoint> jointPoints = new Dictionary<JointType, CameraSpacePoint>();
             foreach (JointType jointType in joints.Keys)
             {
@@ -146,6 +126,10 @@ namespace KinectPointingAPI.Controllers
         private List<BlockData> GetBlocks(JToken allAnnotations)
         {
             JToken detectedBlocks = allAnnotations["DetectedBlock"];
+            if(detectedBlocks == null)
+            {
+                return new List<BlockData>();
+            }
 
             List<BlockData> allBlocks = new List<BlockData>();
             foreach (JToken blockString in detectedBlocks)

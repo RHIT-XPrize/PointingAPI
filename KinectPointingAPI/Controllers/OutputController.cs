@@ -14,28 +14,32 @@ using System.Windows.Media.Imaging;
 using System.Windows;
 using System.IO;
 using System.Windows.Media;
+using System;
 
 namespace KinectPointingAPI.Controllers
 {
     [RoutePrefix("api/Output")]
-    public class OutputController : AnnotationController<Dictionary<string, List<Dictionary<string, string>>>>
+    public class OutputController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
         private KinectSensor kinectSensor;
         private CoordinateMapper coordinateMapper;
         private FrameDescription colorFrameDescription;
         private ColorFrame currColorFrame;
         private BlockDisplay blockDisplay;
-        private string feedback;
+
+        private int optimalBlockId;
+        private List<Dictionary<string, double>> allBlocks;
 
         private static int CONNECT_TIMEOUT_MS = 20000;
-        private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.Feedback";
+        private static string ANNOTATION_TYPE_CLASS = "edu.rosehulman.aixprize.pipeline.types.FilteredBlock";
 
         public OutputController()
         {
             this.kinectSensor = KinectSensor.GetDefault();
             this.coordinateMapper = kinectSensor.CoordinateMapper;
             this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
-      
+
+            this.allBlocks = new List<Dictionary<string, double>>();
             this.blockDisplay = new BlockDisplay();
         }
 
@@ -43,27 +47,27 @@ namespace KinectPointingAPI.Controllers
         {
             this.kinectSensor = KinectSensor.GetDefault();
 
-            int optimalBlockId = this.GetHighestConfidenceId(allAnnotations);
-            if (optimalBlockId == -1)
-            {
-                this.feedback = "Failed to identify a block. Please try again.";
-                return;
-            }
+            this.optimalBlockId = this.GetHighestConfidenceId(allAnnotations);
 
-            BlockData optimalBlock = this.GetBestBlock(allAnnotations, optimalBlockId);
+            BlockData optimalBlock = this.GetBestBlock(allAnnotations);
             this.DisplayBestBlock(optimalBlock);
         }
 
-        public override JsonResult<Dictionary<string, List<Dictionary<string, string>>>> GenerateAnnotationResponse()
+        public override JsonResult<Dictionary<string, List<Dictionary<string, double>>>> GenerateAnnotationResponse()
         {
-            Dictionary<string, string> singleFeedbackItem = new Dictionary<string, string>();
-            singleFeedbackItem.Add("feedbackMsg", this.feedback);
+            List<Dictionary<string, double>> filteredBlocks = new List<Dictionary<string, double>>();
 
-            List<Dictionary<string, string>> allFeedback = new List<Dictionary<string, string>>();
-            allFeedback.Add(singleFeedbackItem);
+            foreach (Dictionary<string, double> blockDetails in allBlocks)
+            {
+                int id = Convert.ToInt32(blockDetails["id"]);
+                int isBestBlock = id == this.optimalBlockId ? 1 : 0;
 
-            Dictionary<string, List<Dictionary<string, string>>> annotation = new Dictionary<string, List<Dictionary<string, string>>>();
-            annotation.Add(ANNOTATION_TYPE_CLASS, allFeedback);
+                blockDetails.Add("isSelectedBlock", isBestBlock);
+                filteredBlocks.Add(blockDetails);
+            }
+
+            Dictionary<string, List<Dictionary<string, double>>> annotation = new Dictionary<string, List<Dictionary<string, double>>>();
+            annotation.Add(ANNOTATION_TYPE_CLASS, filteredBlocks);
             return Json(annotation);
         }
 
@@ -75,10 +79,15 @@ namespace KinectPointingAPI.Controllers
             JToken confidenceDetails = allAnnotations["Pointing"];
             foreach (JToken blockString in confidenceDetails)
             {
+                Dictionary<string, double> blockDetails = new Dictionary<string, double>();
+
                 int id = blockString["id"].ToObject<int>();
                 double confidence  = blockString["confidence"].ToObject<double>();
 
-                if(confidence > bestBlockConfidence)
+                blockDetails.Add("id", id);
+                this.allBlocks.Add(blockDetails);
+
+                if (confidence > bestBlockConfidence)
                 {
                     bestBlockConfidence = confidence;
                     bestBlockId = id;
@@ -88,7 +97,7 @@ namespace KinectPointingAPI.Controllers
             return bestBlockId;
         }
 
-        private BlockData GetBestBlock(JToken allAnnotations, int bestId)
+        private BlockData GetBestBlock(JToken allAnnotations)
         {
             JToken detectedBlocks = allAnnotations["DetectedBlock"];
             BlockData bestBlock = null;
@@ -101,7 +110,7 @@ namespace KinectPointingAPI.Controllers
                 double gHue = blockString["g_hue"].ToObject<double>();
                 double bHue = blockString["b_hue"].ToObject<double>();
 
-                if (id == bestId)
+                if (id == this.optimalBlockId)
                 {
                     bestBlock = new BlockData(id, centerX, centerY, rHue, gHue, bHue);
                     break;
@@ -142,7 +151,6 @@ namespace KinectPointingAPI.Controllers
             this.blockDisplay.DisplayBlockOnImage(currFrame, blockToDisplay);
 
             colorFrameReader.Dispose();
-            this.feedback = "Found block!";
         }
 
         private Bitmap ConvertCurrFrameToBitmap()

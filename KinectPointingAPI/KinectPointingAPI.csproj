@@ -206,13 +206,15 @@
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\ObjectDetectionController.cs" />
     <Compile Include="Controllers\OutputController.cs" />
-    <Compile Include="Controllers\ValuesController.cs" />
+    <Compile Include="Controllers\SessionableControllerHandler.cs" />
+    <Compile Include="Controllers\PointingController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Image_Processing\BlockDisplay.cs" />
     <Compile Include="Image_Processing\BlockDetector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Sensor\SensorHandler.cs" />
     <Compile Include="Utilities\HttpMultipartParser.cs" />
     <Compile Include="Utilities\Datatypes.cs" />
     <Compile Include="Utilities\Misc.cs" />

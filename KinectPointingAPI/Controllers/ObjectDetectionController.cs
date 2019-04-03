@@ -15,13 +15,13 @@ using System.Threading.Tasks;
 using KinectPointingAPI.Image_Processing;
 using HRC_Datatypes;
 using Newtonsoft.Json.Linq;
+using KinectPointingAPI.Sensor;
 
 namespace KinectPointingAPI.Controllers
 {
     [RoutePrefix("api/ObjectDetection")]
     public class ObjectDetectionController : AnnotationController<Dictionary<string, List<Dictionary<string, double>>>>
     {
-        private KinectSensor kinectSensor;
         private CoordinateMapper coordinateMapper;
         private FrameDescription colorFrameDescription;
         private BlockDetector blockDetector;
@@ -35,18 +35,16 @@ namespace KinectPointingAPI.Controllers
 
         public ObjectDetectionController()
         {
-            this.kinectSensor = KinectSensor.GetDefault();
-            this.coordinateMapper = kinectSensor.CoordinateMapper;
-            this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
-
             this.aggregatedData = new List<BlockData>();
             this.blockDetector = new BlockDetector();
         }
 
         public override void ProcessRequest(JToken casJSON)
         {
-            kinectSensor = KinectSensor.GetDefault();
-            kinectSensor.Open();
+            KinectSensor kinectSensor = SensorHandler.GetSensor();
+            this.coordinateMapper = kinectSensor.CoordinateMapper;
+            this.colorFrameDescription = kinectSensor.ColorFrameSource.FrameDescription;
+
             int time_slept = 0;
             while (!kinectSensor.IsAvailable)
             {
@@ -58,29 +56,25 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            ColorFrameReader colorFrameReader = kinectSensor.ColorFrameSource.OpenReader();
             bool dataReceived = false;
             while (!dataReceived)
             {
-                this.currColorFrame = colorFrameReader.AcquireLatestFrame();
+                this.currColorFrame = SensorHandler.GetColorFrame();
                 if (this.currColorFrame != null)
                 {
                     dataReceived = true;
                 }
             }
-            colorFrameReader.Dispose();
-
-            DepthFrameReader depthFrameReader = kinectSensor.DepthFrameSource.OpenReader();
+            
             dataReceived = false;
             while (!dataReceived)
             {
-                this.currDepthFrame = depthFrameReader.AcquireLatestFrame();
+                this.currDepthFrame = SensorHandler.GetDepthFrame();
                 if (this.currDepthFrame != null)
                 {
                     dataReceived = true;
                 }
             }
-            depthFrameReader.Dispose();
 
             this.aggregatedData = this.ProcessBlocksFromFrames();
             this.currColorFrame = null;
@@ -145,7 +139,7 @@ namespace KinectPointingAPI.Controllers
             int colorWidth = this.colorFrameDescription.Width;
             int colorHeight = this.colorFrameDescription.Height;
             CameraSpacePoint[] cameraPoints = new CameraSpacePoint[colorWidth * colorHeight];
-            kinectSensor.CoordinateMapper.MapColorFrameToCameraSpace(depths, cameraPoints);
+            this.coordinateMapper.MapColorFrameToCameraSpace(depths, cameraPoints);
 
             foreach (BlockData block in blocks)
             {
