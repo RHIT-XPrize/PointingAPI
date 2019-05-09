@@ -11,28 +11,25 @@ namespace KinectPointingAPI.Sensor
         public static KinectSensor GetSensor()
         {
             KinectSensor sensor = null;
-            if (HttpContext.Current.Session["Sensor"] == null)
+            sensor = KinectSensor.GetDefault();
+            sensor.Open();
+
+            int ms_slept = 0;
+            while (!sensor.IsAvailable)
             {
-                sensor = KinectSensor.GetDefault();
-                sensor.Open();
-
-                int ms_slept = 0;
-                while (!sensor.IsAvailable)
+                Thread.Sleep(5);
+                ms_slept += 5;
+                if (ms_slept >= CONNECT_TIMEOUT_MS)
                 {
-                    Thread.Sleep(5);
-                    ms_slept += 5;
-                    if (ms_slept >= CONNECT_TIMEOUT_MS)
-                    {
-                        System.Environment.Exit(-1);
-                    }
+                    System.Environment.Exit(-1);
                 }
-
-                HttpContext.Current.Session["Sensor"] = sensor;
-                HttpContext.Current.Session["ColorFrameReader"] = sensor.ColorFrameSource.OpenReader();
-                HttpContext.Current.Session["BodyFrameReader"] = sensor.BodyFrameSource.OpenReader();
-                HttpContext.Current.Session["DepthFrameReader"] = sensor.DepthFrameSource.OpenReader();
-                HttpContext.Current.Session["CoordinateMapper"] = sensor.CoordinateMapper;
             }
+
+            HttpContext.Current.Session["Sensor"] = sensor;
+            HttpContext.Current.Session["ColorFrameReader"] = sensor.ColorFrameSource.OpenReader();
+            HttpContext.Current.Session["BodyFrameReader"] = sensor.BodyFrameSource.OpenReader();
+            HttpContext.Current.Session["DepthFrameReader"] = sensor.DepthFrameSource.OpenReader();
+            HttpContext.Current.Session["CoordinateMapper"] = sensor.CoordinateMapper;
 
             return (KinectSensor)HttpContext.Current.Session["Sensor"];
         }

@@ -206,9 +206,9 @@
     <Compile Include="Controllers\Other Endpoints\HomeController.cs" />
     <Compile Include="Controllers\Annotators\ObjectDetectionController.cs" />
     <Compile Include="Controllers\Annotators\OutputController.cs" />
-    <Compile Include="Controllers\Annotators\SessionableControllerHandler.cs" />
+    <Compile Include="Controllers\SessionableControllerHandler.cs" />
     <Compile Include="Controllers\Annotators\PointingController.cs" />
-    <Compile Include="Controllers\Other Endpoints\StereoCalibrationController.cs" />
+    <Compile Include="Controllers\Annotators\StereoCalibrationController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>

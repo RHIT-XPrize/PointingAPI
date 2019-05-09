@@ -20,27 +20,12 @@ using Newtonsoft.Json.Linq;
 
 namespace KinectPointingAPI.Controllers
 {
-    public class StereoCalibrationControllor : ApiController
+    public class StereoCalibrationController : ApiController
     {
-        private static int TIMEOUT_MS = 30000;
-
         [HttpPost]
         [Route("api/StereoCalibrate")]
-        public JsonResult<Dictionary<string, double>> Post()
+        public JsonResult<Dictionary<string, string>> Post()
         {
-            KinectSensor kinectSensor = SensorHandler.GetSensor();
-
-            int time_slept = 0;
-            while (!kinectSensor.IsAvailable)
-            {
-                Thread.Sleep(5);
-                time_slept += 5;
-                if (time_slept > TIMEOUT_MS)
-                {
-                    System.Environment.Exit(-2);
-                }
-            }
-
             bool dataReceived = false;
             ColorFrame currColorFrame = null;
             while (!dataReceived)
@@ -52,11 +37,13 @@ namespace KinectPointingAPI.Controllers
                 }
             }
 
-            Bitmap frameData = this.ConvertCurrFrameToBitmap(currColorFrame);
-            return this.ProcessCurrentFrame(frameData);
+            int imgWidth = currColorFrame.FrameDescription.Width;
+            int imgHeight = currColorFrame.FrameDescription.Height;
+            byte[] frameData = this.ConvertColorFrameToBytes(currColorFrame);
+            return this.GenerateResponse(frameData, imgWidth, imgHeight);
         }
 
-        private Bitmap ConvertCurrFrameToBitmap(ColorFrame colorFrame)
+        private byte[] ConvertColorFrameToBytes(ColorFrame colorFrame)
         {
             int width = colorFrame.FrameDescription.Width;
             int height = colorFrame.FrameDescription.Height;
@@ -70,20 +57,38 @@ namespace KinectPointingAPI.Controllers
 
             pxData.AddDirtyRect(new Int32Rect(0, 0, width, height));
             pxData.Unlock();
-            Bitmap bmp;
+            byte[] imgBytes;
             using (MemoryStream outStream = new MemoryStream())
             {
                 BitmapEncoder enc = new BmpBitmapEncoder();
                 enc.Frames.Add(BitmapFrame.Create((BitmapSource)pxData));
                 enc.Save(outStream);
-                bmp = new System.Drawing.Bitmap(outStream);
+                imgBytes = outStream.ToArray();
             }
-            return bmp;
+            return imgBytes;
         }
 
-        private JsonResult<Dictionary<string, double>> ProcessCurrentFrame(Bitmap frameData)
+        private byte[] ConvertBitmapToBytes(Bitmap bmp)
         {
-            return Json(new Dictionary<string, double>());
+            byte[] imgBytes;
+            using (MemoryStream stream = new MemoryStream())
+            {
+                bmp.Save(stream, System.Drawing.Imaging.ImageFormat.Bmp);
+                imgBytes = stream.ToArray();
+            }
+            return imgBytes;
+        }
+
+        private JsonResult<Dictionary<string, string>> GenerateResponse(byte[] frameData, int imgWidth, int imgHeight)
+        {
+            Dictionary<string, string> responseData = new Dictionary<string, string>();
+
+            responseData.Add("ImageWidth", Convert.ToString(imgWidth));
+            responseData.Add("ImageHeight", Convert.ToString(imgHeight));
+            string encodedFrameData = Convert.ToBase64String(frameData);
+            responseData.Add("EncodedImage", encodedFrameData);
+
+            return Json(responseData);
         }
     }
 }
